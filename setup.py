@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="vectordb",
+    name="vectordb-sdk",
     version="0.1",
     packages=find_packages(),
     install_requires=[
@@ -9,6 +9,7 @@ setup(
         "fastapi",
         "numpy",
         "cohere",
-        "python-dotenv"
+        "python-dotenv",
+        "requests"
     ],
 )
