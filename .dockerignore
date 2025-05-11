@@ -1,0 +1,6 @@
+client/
+.env
+.venv/
+.git/
+.gitignore
+.server/pickle_db/
