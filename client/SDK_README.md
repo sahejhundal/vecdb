@@ -150,7 +150,6 @@ results = client.search(SearchQuery(
     library_id="my_library",
     embedding=[0.1, 0.2, 0.3],  # Your query vector
     k=5,  # Number of results to return
-    metadata_filter={"section": "introduction"}  # Optional metadata filter
 ))
 
 # Process search results
