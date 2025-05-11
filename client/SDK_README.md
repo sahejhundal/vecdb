@@ -48,6 +48,9 @@ client.index_library("my_library")
 
 # Get chunk count in a library
 count = client.get_chunk_count("my_library")
+
+# Switch index algorithm
+client.switch_index_algorithm("my_library", algorithm="lsh")  # or "vector"
 ```
 
 ### Document Management

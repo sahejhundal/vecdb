@@ -37,6 +37,9 @@ class VectorDBAPIClient:
     def get_chunk_count(self, library_id: str) -> Dict:
         return self._make_request("GET", f"/libraries/{library_id}/chunks/count")
 
+    def switch_index_algorithm(self, library_id: str, algorithm: str) -> Dict:
+        return self._make_request("POST", f"/libraries/{library_id}/switch-index", params={"algorithm": algorithm})
+
     # Document operations
     def create_document(self, document_create: DocumentCreate) -> Document:
         return Document(**self._make_request("POST", f"/libraries/{document_create.library_id}/documents", json=document_create.model_dump()))

@@ -1,288 +1,183 @@
-# Vector Database Implementation
+# Vector Search API Documentation
 
-This project implements a vector database with two different indexing strategies: a brute-force vector index and a Locality-Sensitive Hashing (LSH) index using random projections.
+## Project Overview
 
-## Overview
+This is a vector search API implementation that provides efficient storage and retrieval of document embeddings. The system uses Locality-Sensitive Hashing (LSH) for optimized similarity search and includes a Python SDK client for easy integration.
 
-The vector database is designed to store and efficiently retrieve high-dimensional vectors (embeddings) along with their associated metadata. It provides two different indexing strategies to balance between search accuracy and performance:
+### Key Features
 
-1. **Vector Index (Brute Force)**
-   - Simple linear search implementation
-   - Computes exact similarity scores
-   - Best for small datasets or when accuracy is critical
+- RESTful API for managing document libraries, documents, and chunks
+- Thread-safe vector database implementation using RLock
+- Persistent storage using pickle serialization
+- Automatic periodic saving of database state
+- Sample embeddings initialization from a default file
+- Python SDK client with interactive CLI
+- Cohere integration for embedding generation
 
-2. **LSH Index (Random Projections)**
-   - Approximate nearest neighbor search using Locality-Sensitive Hashing
-   - Uses multiple hash tables with random hyperplanes
-   - Optimized for larger datasets with acceptable approximation
+### Technical Implementation
 
-## Technical Details
+#### Database Implementation (`db.py`)
+- Thread-safe operations using `threading.RLock`
+- Periodic automatic saving of database state
+- Persistent storage using pickle serialization
+- Automatic initialization from sample embeddings file
+- Support for both LSH and brute-force vector search implementations
 
-### Vector Index (Brute Force)
+#### Vector Search Implementations
 
-The `VectorIndex` class implements a straightforward approach where:
-- Vectors are stored in a simple list
-- Search involves computing cosine similarity with all vectors
-- Results are sorted by similarity score
+##### VectorIndex (`vector_index.py`)
+A basic vector search implementation using brute force comparison.
 
-**Complexity Analysis:**
-- Space Complexity: O(n * d) where n is number of vectors and d is dimension
-- Time Complexity:
-  - Insert: O(1)
-  - Search: O(n * d) for computing similarities + O(n log n) for sorting
+###### Space Complexity
+- **O(n * d)** where:
+  - n = number of chunks stored
+  - d = dimension of the vectors
+- Storage: All vectors are stored in a list, with each vector having d dimensions
 
-### LSH Index (Random Projections)
+###### Time Complexity
+- **Insert**: O(1)
+  - Simply appends to a list
+- **Search**: O(n * d)
+  - Must compute similarity with every stored vector
+  - Each similarity computation takes O(d) time for dot product and normalization
 
-The `LSHIndex` class implements Locality-Sensitive Hashing using random hyperplane projections:
-- Uses multiple hash tables (default: 4)
-- Each table has multiple random hyperplanes (default: 8)
-- Vectors are hashed into buckets based on their projections
-- Search only considers vectors in the same buckets
+##### LSHIndex (`lsh_index.py`)
+An optimized implementation using Locality-Sensitive Hashing (LSH).
 
-**Complexity Analysis:**
-- Space Complexity: O(n * d + t * p * d) where:
-  - n is number of vectors
-  - d is dimension
-  - t is number of hash tables
-  - p is number of hyperplanes per table
-- Time Complexity:
-  - Insert: O(t * p * d) for computing hashes
-  - Search: O(t * p * d + m * d) where m is number of candidates in matching buckets
+###### Space Complexity
+- **O(n * t + t * p * d)** where:
+  - n = number of chunks stored
+  - t = number of hash tables (n_tables)
+  - p = number of planes per table (n_planes)
+  - d = dimension of vectors
+- Storage components:
+  - Hash tables: O(n * t) - each chunk is stored t times
+  - Projection planes: O(t * p * d) for the random projection matrices
 
+###### Time Complexity
+- **Insert**: O(t * (p * d + 1))
+  - For each table:
+    - Computing hash: O(p * d) for matrix multiplication
+    - Inserting into hash table: O(1) average case
+- **Search**: O(t * (p * d + b) * d)
+  - Process:
+    - Computing query hashes: O(t * p * d)
+    - Looking up buckets: O(t)
+    - Computing exact distances for candidates: O(b * d) per table
+  - Where:
+    - t = number of hash tables
+    - p = number of planes
+    - d = dimension of vectors
+    - b = average bucket size
 
-## Configuration
+## Setup and Installation
 
-The LSH Index can be configured with the following parameters:
-- `dimension`: Dimension of the vectors
-- `n_planes`: Number of random hyperplanes per hash table (default: 8)
-- `n_tables`: Number of hash tables (default: 4)
-- `random_seed`: Seed for random number generation (default: 42)
+1. Clone the repository
+2. Create a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r server/requirements.txt
+   pip install -e .
+   ```
+4. Create a `.env` file with your Cohere API key:
+   ```
+   COHERE_API_KEY=your_api_key_here
+   ```
 
-## Thread Safety
+## Running the Project
 
-Both index implementations are thread-safe, using locks to protect concurrent access to the data structures. 
+1. Start the server:
+   ```bash
+   python server/run.py
+   ```
+   The server will start on `http://localhost:8000`
+
+2. Use the Python SDK client:
+   ```bash
+   python client/vectordb_client.py
+   ```
+
+## Containerizing
+
+   ```bash
+   eval $(minikube docker-env)
+   docker build -t vectordb:1.0 .
+   minikube service vectordb
+   ```
+
 
 ## API Endpoints
 
-The vector database exposes a RESTful API with the following endpoints:
+### System Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check endpoint |
 
 ### Libraries
 
-- `POST /libraries` - Create a new library
-- `GET /libraries/{library_id}` - Get library details
-- `PUT /libraries/{library_id}` - Update library
-- `DELETE /libraries/{library_id}` - Delete library
-- `POST /libraries/{library_id}/index` - Index all documents in a library
-- `GET /libraries/{library_id}/chunks/count` - Get total chunk count in a library
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/libraries` | Create a new library |
+| GET | `/libraries/{library_id}` | Get a library by ID |
+| PUT | `/libraries/{library_id}` | Update a library |
+| DELETE | `/libraries/{library_id}` | Delete a library |
+| POST | `/libraries/{library_id}/index` | Index all documents in a library |
+| POST | `/libraries/{library_id}/switch-index` | Switch between LSH and Vector index algorithms |
+| GET | `/libraries/{library_id}/chunks/count` | Get the total number of chunks in a library |
 
 ### Documents
 
-- `POST /libraries/{library_id}/documents` - Create a new document
-- `GET /libraries/{library_id}/documents/{document_id}` - Get document details
-- `PUT /libraries/{library_id}/documents/{document_id}` - Update document
-- `DELETE /libraries/{library_id}/documents/{document_id}` - Delete document
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/libraries/{library_id}/documents` | Create a new document in a library |
+| GET | `/libraries/{library_id}/documents/{document_id}` | Get a document from a library |
+| PUT | `/libraries/{library_id}/documents/{document_id}` | Update a document in a library |
+| DELETE | `/libraries/{library_id}/documents/{document_id}` | Delete a document from a library |
 
 ### Chunks
 
-- `POST /libraries/{library_id}/documents/{document_id}/chunks` - Create a new chunk
-- `POST /libraries/{library_id}/documents/{document_id}/chunks/bulk` - Create multiple chunks
-- `GET /libraries/{library_id}/documents/{document_id}/chunks` - List all chunks in a document
-- `GET /libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}` - Get chunk details
-- `PUT /libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}` - Update chunk
-- `DELETE /libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}` - Delete chunk
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/libraries/{library_id}/documents/{document_id}/chunks` | Create a new chunk in a document |
+| POST | `/libraries/{library_id}/documents/{document_id}/chunks/bulk` | Create multiple chunks at once |
+| GET | `/libraries/{library_id}/documents/{document_id}/chunks` | List all chunks in a document |
+| GET | `/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}` | Get a specific chunk |
+| PUT | `/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}` | Update a chunk |
+| DELETE | `/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}` | Delete a chunk |
 
 ### Search
 
-- `POST /libraries/{library_id}/search` - Search for similar chunks in a library
-  - Request body should include:
-    - `embedding`: Vector to search for
-    - `k`: Number of results to return (default: 1)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/libraries/{library_id}/search` | Search for similar chunks in a library |
 
-### Health Check
+## Python SDK Client
 
-- `GET /health` - Check API health status
+The project includes a Python SDK client (`vectordb_client.py`) that provides an interactive CLI for interacting with the vector database. The client supports:
 
-## Request/Response Models
+- Library management (create, read, update, delete)
+- Document management
+- Chunk management (single and bulk operations)
+- Vector search with metadata filtering
+- Automatic embedding generation using Cohere API
 
-### Library
-```python
-class LibraryCreate:
-    name: str
-    description: Optional[str]
-    metadata: Optional[Dict[str, Any]]
+## Data Persistence
 
-class LibraryUpdate:
-    name: Optional[str]
-    description: Optional[str]
-    metadata: Optional[Dict[str, Any]]
-```
-
-### Document
-```python
-class DocumentCreate:
-    title: str
-    content: str
-    metadata: Optional[Dict[str, Any]]
-
-class DocumentUpdate:
-    title: Optional[str]
-    content: Optional[str]
-    metadata: Optional[Dict[str, Any]]
-```
-
-### Chunk
-```python
-class ChunkCreate:
-    text: str
-    embedding: List[float]
-    metadata: Optional[Dict[str, Any]]
-
-class ChunkUpdate:
-    text: Optional[str]
-    embedding: Optional[List[float]]
-    metadata: Optional[Dict[str, Any]]
-
-class BulkChunkCreate:
-    chunks: List[ChunkCreate]
-```
-
-### Search
-```python
-class SearchQuery:
-    embedding: List[float]
-    k: int = 1
-    metadata_filter: Optional[Dict[str, Any]]
-
-class SearchResponse:
-    distance: float
-    chunk: Chunk
-```
+The database state is automatically saved to disk using pickle serialization. The save process:
+- Runs periodically (default: every 30 seconds)
+- Uses atomic file operations to prevent corruption
+- Maintains a backup of the previous state
+- Initializes with sample embeddings if no existing data is found
 
 ## Error Handling
 
-The API uses standard HTTP status codes:
-- 200: Success
-- 400: Bad Request (e.g., invalid embedding dimension)
-- 404: Not Found (e.g., library/document/chunk not found)
-- 500: Internal Server Error
-
-All error responses include a detail message explaining the error. 
-
-## Project Setup and Running
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd <repository-name>
-```
-
-2. Install the project in development mode:
-```bash
-pip install -r server/requirements.txt
-pip install -e .
-```
-
-This will install the project and its dependencies, and create the necessary egg-info directory.
-
-### Running the Server
-
-1. Start the FastAPI server:
-```bash
-python server/run.py
-```
-
-The server will start on `http://localhost:8000` by default. 
-
-### Using the Client
-
-The project includes a Python client (`client/vectordb_client.py`) that provides a convenient interface to interact with the vector database. For detailed documentation on how to use the SDK programmatically, including all available methods and examples, please refer to the [SDK Documentation](client/SDK_README.md).
-
-The SDK provides comprehensive functionality for:
-- Library management (create, read, update, delete)
-- Document management with bulk operations
-- Chunk management
-- Chunk searching using text
-- Error handling and best practices
-
-## Containerization and Deployment
-
-### Building the Docker Image
-
-1. Build the Docker image:
-```bash
-docker build -t vectordb:latest .
-```
-
-### Kubernetes Deployment with Minikube
-
-1. Start Minikube:
-```bash
-minikube start
-```
-
-2. Enable the Minikube Docker daemon:
-```bash
-eval $(minikube docker-env)
-```
-
-3. Build the image in Minikube's Docker environment:
-```bash
-docker build -t vectordb:latest .
-```
-
-4. Deploy to Kubernetes:
-```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-```
-
-5. Open the service in your browser:
-```bash
-minikube service vectordb-service
-```
-
-This will automatically open your default browser to the service URL.
-
-### Accessing the Service
-
-After deployment, you can access the service in several ways:
-
-1. Through Minikube service (opens in browser):
-```bash
-minikube service vectordb-service
-```
-
-2. Get the service URL:
-```bash
-minikube service vectordb-service --url
-```
-
-3. Port forward to localhost:
-```bash
-kubectl port-forward service/vectordb-service 8000:8000
-```
-
-### Monitoring and Logs
-
-View the deployment status:
-```bash
-kubectl get deployments
-kubectl get pods
-kubectl get services
-```
-
-View container logs:
-```bash
-kubectl logs -f deployment/vectordb
-```
-
-### Cleanup
-
-To clean up the deployment:
-```bash
-kubectl delete -f k8s/deployment.yaml
-kubectl delete -f k8s/service.yaml
-minikube stop
-```
+The system includes comprehensive error handling:
+- Input validation using Pydantic models
+- Thread-safe operations with RLock
+- Graceful error recovery
+- Detailed error messages and logging

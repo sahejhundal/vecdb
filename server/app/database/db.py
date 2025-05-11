@@ -285,6 +285,25 @@ class VectorDatabase:
                 
             return results
 
+    def switch_index_algorithm(self, library_id: str, index_class: Type[BaseIndex], **index_kwargs) -> bool:
+        """Switch the index algorithm for a library."""
+        
+        with self._lock:
+            library = self._libraries.get(library_id)
+            if not library:
+                print(f"switch_index_algorithm: Library {library_id} not found")
+                return False
+                
+            self._indices[library_id] = index_class(dimension=self.embedding_dimension, **index_kwargs)
+            self._index_class = index_class
+            self._index_kwargs = index_kwargs
+            
+            success = self.index_library(library_id)
+            if success:
+                print(f"Switched index algorithm for library {library_id} to {index_class.__name__}")
+                self._mark_for_save()
+            return success
+
 
 
 

@@ -53,8 +53,9 @@ class VectorDBClient:
         print("4. Delete Library")
         print("5. Index Library")
         print("6. Get Chunk Count")
-        print("7. Back to Main Menu")
-        return input("Select an option (1-7): ")
+        print("7. Switch Index Algorithm")
+        print("8. Back to Main Menu")
+        return input("Select an option (1-8): ")
 
     def print_document_menu(self):
         """Print document operation options."""
@@ -136,8 +137,19 @@ class VectorDBClient:
                     count = self.apiclient.get_chunk_count(self.library_id)
                     print(f"Chunk count: {count['count']}")
 
-                # Back to Main Menu
+                # Switch Index Algorithm
                 elif choice == "7":
+                    self.library_id = input(f"Enter library ID (default: {self.library_id}): ") or self.library_id
+                    print("\nAvailable algorithms:")
+                    print("1. LSH Index (faster, approximate)")
+                    print("2. Vector Index (slower, exact)")
+                    algo_choice = input("Select algorithm (1-2): ")
+                    algorithm = "lsh" if algo_choice == "1" else "vector"
+                    result = self.apiclient.switch_index_algorithm(self.library_id, algorithm)
+                    print(f"Successfully switched to {algorithm} index!")
+
+                # Back to Main Menu
+                elif choice == "8":
                     break
 
             except Exception as e:
