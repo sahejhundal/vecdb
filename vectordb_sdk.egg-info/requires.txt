@@ -1,6 +1,0 @@
-pydantic
-fastapi
-numpy
-cohere
-python-dotenv
-requests

@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: vectordb
-Version: 0.1
-Requires-Dist: pydantic
-Requires-Dist: fastapi
-Requires-Dist: numpy
-Requires-Dist: cohere
-Requires-Dist: python-dotenv
-Dynamic: requires-dist
